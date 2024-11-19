@@ -9,6 +9,7 @@ import networkx as nx
 import pickle
 import random
 from datetime import datetime
+import yaml
 
 def now():
     return datetime.now().strftime('%Y%m%d%H%M')
@@ -24,6 +25,10 @@ def set_random_seeds(seed_value=0, device='cpu'):
         torch.backends.cudnn.deterministic = True
         torch.backends.cudnn.benchmark = False
 
+def load_yaml(fn):
+    with open(fn) as fp:
+        config = yaml.safe_load(fp)
+    return config
 
 def load_data(
         dataname:Literal['YelpHotel','YelpRes','Amazon','YelpNYC'],

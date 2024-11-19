@@ -96,7 +96,8 @@ class SupRunner():
                 if stops >= n_stopping:
                     if printing: print(f"=== Early Stopping at epoch {epoch_best}, best loss_val = {loss_val_best} ===")
                     break
-            if printing: print(f"Epoch: {epoch}, Training loss: {loss_train}, Val loss: {loss_val}")
+            if printing and epoch%10==0: 
+                print(f"Epoch: {epoch}, Training loss: {loss_train}, Val loss: {loss_val}")
         
         if early_stopping:
             self.source_encoder.load_state_dict(weights_source_encoder)
@@ -163,11 +164,12 @@ class SupRunner():
         self,
         modulename,
         outdir,
-        savedir
+        savedir,
+        source
     ):
-        torch.save(self.source_encoder.state_dict(), os.path.join(savedir,f'{modulename}_encoder_{now()}.pth'))
-        torch.save(self.classifier.state_dict(), os.path.join(savedir,f'{modulename}_classifier_{now()}.pth'))
-        self.get_perf_df().to_csv(os.path.join(outdir,f'{modulename}_perf_{now()}.csv'))
+        torch.save(self.source_encoder.state_dict(), os.path.join(savedir,f'{modulename}_encoder_{source}.pth'))
+        torch.save(self.classifier.state_dict(), os.path.join(savedir,f'{modulename}_classifier_{source}.pth'))
+        self.get_perf_df().to_csv(os.path.join(outdir,f'{modulename}_perf_{source}.csv'))
     
     def clear(self):
         self.cpu()

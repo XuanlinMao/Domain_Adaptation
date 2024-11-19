@@ -1,0 +1,53 @@
+YelpRes:
+  nhids_source_encoder: [8000,128,64]
+  nhids_classifier: [64,32,1]
+  dropout_source_encoder: 0.
+  dropout_classifier: 0.
+  with_bn_source_encoder: False
+  with_bn_classifier: False
+  lr: 0.01
+  n_epoch: 1000
+  n_stopping: 20
+  early_stopping: True
+
+
+
+YelpHotel:
+  nhids_source_encoder: [8000,128,64]
+  nhids_classifier: [64,32,1]
+  dropout_source_encoder: 0.
+  dropout_classifier: 0.
+  with_bn_source_encoder: False
+  with_bn_classifier: False
+  lr: 0.01
+  n_epoch: 1000
+  n_stopping: 20
+  early_stopping: True
+
+
+
+YelpNYC:
+  nhids_source_encoder: [8000,128,64]
+  nhids_classifier: [64,32,1]
+  dropout_source_encoder: 0.
+  dropout_classifier: 0.
+  with_bn_source_encoder: False
+  with_bn_classifier: False
+  lr: 0.01
+  n_epoch: 1000
+  n_stopping: 20
+  early_stopping: True
+
+
+
+Amazon:
+  nhids_source_encoder: [8000,128,64]
+  nhids_classifier: [64,32,1]
+  dropout_source_encoder: 0.
+  dropout_classifier: 0.
+  with_bn_source_encoder: False
+  with_bn_classifier: False
+  lr: 0.01
+  n_epoch: 1000
+  n_stopping: 20
+  early_stopping: True
