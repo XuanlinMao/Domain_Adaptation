@@ -2,4 +2,4 @@
 
 Research project related to *Source-Free Unsupervised Graph Domain Adaptation* (SFUGDA) for Anomaly Detection tasks, leveraging the heterogeneity among nodes and semantic neighbors to fine-tune the source model.
 
-For any question, please contact [Xuanlin Mao](https://www.linkedin.com/in/xuanlin-mao-50453b2b3/) through `xuanlinmao@berkeley.edu`.
+For any question, please contact Xuanlin Mao through `xuanlinmao@berkeley.edu`.
