@@ -9,6 +9,14 @@ from typing import Literal
 import pandas as pd 
 import os
 import gc
+from models import *
+from os.path import join
+from tqdm import tqdm
+from pygod.metric import eval_roc_auc
+import torch.nn.functional as F
+import warnings
+warnings.filterwarnings('ignore')
+
 
 
 class SupRunner():
@@ -182,3 +190,163 @@ class SupRunner():
         gc.collect()
         torch.cuda.empty_cache()
 
+
+
+
+
+
+
+
+
+class DARunner():
+    def __init__(self, args) -> None:
+        self.args = args
+    
+    def train(self):
+        args = self.args
+
+        device = torch.device(f'cuda:{args.device}')
+        set_random_seeds(seed_value=args.seed, device=device)
+
+        encoder = GCN_Encoder(nhids = args.nhids_source_encoder,
+                                    dropout = args.dropout_source_encoder,
+                                    with_bn = args.with_bn_source_encoder).to(device)
+        classifier = Classifier(nhids = args.nhids_classifier,
+                                dropout = args.dropout_classifier,
+                                with_bn = args.with_bn_classifier).to(device)
+        encoder.load_state_dict(torch.load(join(args.savedir_source, "GCN_encoder_" + args.source + ".pth")))
+        classifier.load_state_dict(torch.load(join(args.savedir_source, "GCN_classifier_" + args.source + ".pth")))
+
+        data_tgt, label_tgt = load_data(args.target, if_split=False)
+        G = nx.Graph()
+        G.add_edges_from(data_tgt.edge_index.t().tolist())
+        adj = torch.tensor(nx.to_numpy_array(G, dtype=int)).to(device).float()
+        data_tgt, label_tgt = data_tgt.to(device), label_tgt.to(device)
+
+        n_t = data_tgt.x.shape[0]
+        n_epoch = args.n_epoch_t
+        k = args.k
+        m = args.m
+        r = args.r
+        gamma_div = args.gamma_div
+        gamma_semantic = args.gamma_semantic
+        gamma_hetero = args.gamma_hetero
+        epsilon = args.epsilon
+        alpha = args.alpha
+        lr = args.lr_t
+        epoch_encoder = args.epoch_encoder
+        epoch_classifier = args.epoch_classifier
+
+        encoder_optimizer = optim.Adam(params=encoder.parameters(), lr=lr)
+        classifier_optimizer = optim.Adam(params=classifier.parameters(), lr=lr)
+
+        loss_div_list = []
+        loss_hetero_list = []
+        loss_semantic_list = []
+        auc_list = []
+
+
+        print("==== Start DA ====")
+        for epoch in tqdm(range(n_epoch)):
+            if epoch % (epoch_encoder + epoch_classifier) >= epoch_classifier:
+                for p in encoder.parameters():
+                    p.requires_grad = True
+                encoder.train()
+                for p in classifier.parameters():
+                    p.requires_grad = False
+
+                emb = encoder(data_tgt.x, data_tgt.edge_index).to(device)
+                pred = classifier(emb)
+                pred = torch.cat([1-pred,pred],dim=1).to(device)
+
+                # emb_norm = torch.norm(emb,dim=1).to(device)
+
+                # cosine_sim = (emb @ emb.T) / torch.norm(emb,dim=1).to(device) / torch.norm(emb,dim=1).to(device).unsqueeze(dim=1)
+                cosine_sim = F.normalize(emb, p=2, dim=1) @ F.normalize(emb, p=2, dim=1).T
+                indices_k = cosine_sim.topk(k+1, dim=1).indices
+                # indices_m = cosine_sim.topk(m+1, dim=1).indices
+                del(cosine_sim, emb)
+                torch.cuda.empty_cache()
+
+                # adj_cos_k = torch.zeros([n_t,n_t]).to(device)
+                # adj_cos_k.scatter_(1, indices_k, 1.)
+                # adj_cos_k -= torch.diag(torch.diag(adj_cos_k))
+                # adj_cos_m = torch.zeros([n_t,n_t]).to(device)
+                # adj_cos_m.scatter_(1, indices_m, 1.)
+                # adj_cos_m -= torch.diag(torch.diag(adj_cos_m))
+                # adj_cos = adj_cos_k * adj_cos_m
+
+                adj_cos = torch.zeros([n_t,n_t]).to(device)
+                adj_cos.scatter_(1, indices_k, 1.)
+                adj_cos -= torch.diag(torch.diag(adj_cos))
+                adj_cos[adj_cos == 0.] = r
+
+                
+                q = torch.tensor([1-alpha, alpha]).to(device)
+                p = pred.mean(dim=0)
+                
+                loss_div = (p * torch.log(p/q)).sum()
+                loss_semantic = - ((adj_cos @ pred) * pred).sum(dim=1).mean()
+                loss = gamma_div*loss_div + loss_semantic
+
+                encoder_optimizer.zero_grad()
+                loss.backward()
+                encoder_optimizer.step()
+
+                loss_div_list.append(loss_div.detach().item())
+                loss_semantic_list.append(loss_semantic.detach().item())
+                loss_hetero_list.append(None)
+            
+            else:
+                for p in encoder.parameters():
+                    p.requires_grad = False
+                for p in classifier.parameters():
+                    p.requires_grad = True
+                classifier.train()
+
+                emb = encoder(data_tgt.x, data_tgt.edge_index).to(device)
+                pred = classifier(emb)
+                pred = torch.clamp(pred, min=epsilon, max=1-epsilon)
+                pred_nb = (adj@pred)/adj.sum(dim=1,keepdim=True)
+                hetero = (1-F.cosine_similarity(torch.cat([pred,1-pred],dim=1), torch.cat([pred_nb,1-pred_nb],dim=1))).reshape(-1,1).detach()
+                loss_hetero = -(hetero*torch.log(pred) + (1-hetero)*torch.log(1-pred)).mean()
+                loss = loss_hetero
+
+                classifier_optimizer.zero_grad()
+                loss.backward()
+                classifier_optimizer.step()
+                
+                loss_hetero_list.append(loss_hetero.detach().item())
+                loss_div_list.append(None)
+                loss_semantic_list.append(None)
+
+            for p in encoder.parameters():
+                p.requires_grad = False
+            for p in classifier.parameters():
+                    p.requires_grad = False
+            encoder.eval()
+            classifier.eval()
+
+            pred = classifier(encoder(data_tgt.x, data_tgt.edge_index).to(device)).detach().cpu().numpy()
+            auc = eval_roc_auc(label_tgt.detach().cpu().flatten(), pred.flatten())
+            auc_list.append(auc)
+
+        print(f"final auc: {auc}")
+        print("==== DONE ====")
+        
+        if args.save:
+            output = pd.DataFrame({
+                "div": loss_div_list,
+                "semantic": loss_semantic_list,
+                "hetero": loss_hetero_list,
+                "auc": auc_list
+            })
+            self.save(output, encoder, classifier)
+        
+
+
+    def save(self, df_log, encoder, classifier):
+        args = self.args
+        torch.save(encoder.state_dict(), os.path.join(args.savedir, f'encoder_{args.source}_to_{args.target}.pth'))
+        torch.save(classifier.state_dict(), os.path.join(args.savedir, f'classifier_{args.source}_to_{args.target}.pth'))
+        df_log.to_csv(os.path.join(args.outdir, f'log_{args.source}_to_{args.target}.csv'))

@@ -42,6 +42,8 @@ def load_data(
     edges = torch.tensor([[u for (u, v) in D.edges()],[v for (u,v) in D.edges()]], dtype=torch.int64)
     attr = torch.tensor(dataset['Attributes'].toarray(), dtype=torch.float)
     label = torch.tensor(dataset['Label'], dtype=torch.float)
+    if dataname == 'Amazon':
+        label = label.reshape(-1,1)
     data = Data(x=attr, edge_index=edges)
 
     if if_split:

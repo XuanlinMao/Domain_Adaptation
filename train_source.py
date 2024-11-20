@@ -2,9 +2,6 @@ import argparse
 import os
 from os.path import join
 from utils import load_yaml
-from datetime import datetime
-from random import seed, randint
-import pandas as pd
 import os
 import torch
 import utils
@@ -30,10 +27,10 @@ def exp():
     print(f"Target Domain: {args.target}")
     runner = SupRunner(data_src, label_src, data_tgt, label_tgt, source_encoder, classifier, device)
     runner.train(printing = True, 
-                 lr = args.lr, 
-                 n_epoch = args.n_epoch, 
-                 n_stopping = args.n_stopping, 
-                 early_stopping = args.early_stopping)
+                 lr = args.lr_s, 
+                 n_epoch = args.n_epoch_s, 
+                 n_stopping = args.n_stopping_s, 
+                 early_stopping = args.early_stopping_s)
     runner.save('GCN', args.outdir, args.savedir, args.source)
     runner.clear()
 
@@ -53,11 +50,12 @@ if __name__ == "__main__":
 
 
     if args.config_fn is not None:
-        config = load_yaml(join("config", args.config_fn + ".yaml"))
+        config = load_yaml(join("/data/xuanlin/DA/Domain_Adaptation/config", args.config_fn + ".yaml"))
         if args.source in config:
             source_config = config[args.source]
             args = argparse.Namespace(**{**vars(args), **source_config})
     else:
         raise RuntimeError("Config file not found!")
-
+    
+    print(args)
     exp()

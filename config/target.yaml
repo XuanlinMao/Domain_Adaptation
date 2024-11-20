@@ -1,0 +1,59 @@
+YelpHotel:
+  n_epoch_t: 550
+  k: 5
+  m: 5
+  r: 0.
+  gamma_div: 500.
+  gamma_semantic: 1.
+  gamma_hetero: 1.
+  epsilon: 0.000001
+  alpha: 0.05
+  lr_t: 0.01
+  epoch_encoder: 5
+  epoch_classifier: 5
+
+
+YelpRes:
+  n_epoch_t: 500
+  k: 5
+  m: 5
+  r: 0.
+  gamma_div: 500.
+  gamma_semantic: 1.
+  gamma_hetero: 1.
+  epsilon: 0.000001
+  alpha: 0.05
+  lr_t: 0.005
+  epoch_encoder: 5
+  epoch_classifier: 5
+
+
+YelpNYC:
+  n_epoch_t: 600
+  k: 5
+  m: 5
+  r: 0.
+  gamma_div: 500.
+  gamma_semantic: 1.
+  gamma_hetero: 1.
+  epsilon: 0.000001
+  alpha: 0.05
+  lr_t: 0.01
+  epoch_encoder: 5
+  epoch_classifier: 5
+
+
+Amazon:
+  n_epoch_t: 300
+  k: 5
+  m: 5
+  r: 0.
+  gamma_div: 500.
+  gamma_semantic: 1.
+  gamma_hetero: 1.
+  epsilon: 0.000001
+  alpha: 0.05
+  lr_t: 0.1
+  epoch_encoder: 5
+  epoch_classifier: 5
+  
