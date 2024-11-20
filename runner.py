@@ -205,8 +205,8 @@ class DARunner():
         set_random_seeds(seed_value=args.seed, device=device)
 
         encoder = GCN_Encoder(nhids = args.nhids_source_encoder,
-                                    dropout = args.dropout_source_encoder,
-                                    with_bn = args.with_bn_source_encoder).to(device)
+                              dropout = args.dropout_source_encoder,
+                              with_bn = args.with_bn_source_encoder).to(device)
         classifier = Classifier(nhids = args.nhids_classifier,
                                 dropout = args.dropout_classifier,
                                 with_bn = args.with_bn_classifier).to(device)
@@ -222,8 +222,8 @@ class DARunner():
         n_t = data_tgt.x.shape[0]
         n_epoch = args.n_epoch_t
         k = args.k
-        m = args.m
-        r = args.r
+        # m = args.m
+        # r = args.r
         gamma_div = args.gamma_div
         gamma_semantic = args.gamma_semantic
         gamma_hetero = args.gamma_hetero
@@ -247,9 +247,10 @@ class DARunner():
             if epoch % (epoch_encoder + epoch_classifier) < epoch_encoder:
                 for p in encoder.parameters():
                     p.requires_grad = True
-                encoder.train()
                 for p in classifier.parameters():
                     p.requires_grad = False
+                encoder.train()
+                classifier.train()
 
                 emb = encoder(data_tgt.x, data_tgt.edge_index).to(device)
                 pred = classifier(emb)
@@ -304,6 +305,7 @@ class DARunner():
                     p.requires_grad = False
                 for p in classifier.parameters():
                     p.requires_grad = True
+                encoder.train()
                 classifier.train()
 
                 emb = encoder(data_tgt.x, data_tgt.edge_index).to(device)
