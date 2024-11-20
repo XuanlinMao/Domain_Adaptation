@@ -194,10 +194,6 @@ class SupRunner():
 
 
 
-
-
-
-
 class DARunner():
     def __init__(self, args) -> None:
         self.args = args
@@ -248,7 +244,7 @@ class DARunner():
 
         print("==== Start DA ====")
         for epoch in tqdm(range(n_epoch)):
-            if epoch % (epoch_encoder + epoch_classifier) >= epoch_classifier:
+            if epoch % (epoch_encoder + epoch_classifier) < epoch_encoder:
                 for p in encoder.parameters():
                     p.requires_grad = True
                 encoder.train()
@@ -258,10 +254,6 @@ class DARunner():
                 emb = encoder(data_tgt.x, data_tgt.edge_index).to(device)
                 pred = classifier(emb)
                 pred = torch.cat([1-pred,pred],dim=1).to(device)
-
-                # emb_norm = torch.norm(emb,dim=1).to(device)
-
-                # cosine_sim = (emb @ emb.T) / torch.norm(emb,dim=1).to(device) / torch.norm(emb,dim=1).to(device).unsqueeze(dim=1)
                 cosine_sim = F.normalize(emb, p=2, dim=1) @ F.normalize(emb, p=2, dim=1).T
                 indices_k = cosine_sim.topk(k+1, dim=1).indices
                 # indices_m = cosine_sim.topk(m+1, dim=1).indices
@@ -276,18 +268,28 @@ class DARunner():
                 # adj_cos_m -= torch.diag(torch.diag(adj_cos_m))
                 # adj_cos = adj_cos_k * adj_cos_m
 
-                adj_cos = torch.zeros([n_t,n_t]).to(device)
-                adj_cos.scatter_(1, indices_k, 1.)
-                adj_cos -= torch.diag(torch.diag(adj_cos))
-                adj_cos[adj_cos == 0.] = r
+                # adj_cos = torch.zeros([n_t,n_t]).to(device)
+                # adj_cos.scatter_(1, indices_k, 1.)
+                # adj_cos -= torch.diag(torch.diag(adj_cos))
+                # adj_cos[adj_cos == 0.] = r
 
+                indices = torch.cat([torch.arange(indices_k.shape[0]).repeat_interleave(indices_k.shape[1]).to(device).reshape(1,-1), 
+                                     indices_k.flatten().reshape(1,-1)], dim=0) # transfer indices_k to edge_idx form
+                values = torch.ones(indices.size(1), device=device)
+                adj_cos = torch.sparse_coo_tensor(indices, values, size=(n_t, n_t)).to(device)
+                adj_cos = adj_cos.coalesce()
+                diag_mask = adj_cos._indices()[0] != adj_cos._indices()[1]
+                indices = adj_cos._indices()[:, diag_mask]
+                values = adj_cos._values()[diag_mask]
+                adj_cos = torch.sparse_coo_tensor(indices, values, size=(n_t, n_t)).to(device)
                 
                 q = torch.tensor([1-alpha, alpha]).to(device)
                 p = pred.mean(dim=0)
                 
                 loss_div = (p * torch.log(p/q)).sum()
-                loss_semantic = - ((adj_cos @ pred) * pred).sum(dim=1).mean()
-                loss = gamma_div*loss_div + loss_semantic
+                # loss_semantic = - ((adj_cos @ pred) * pred).sum(dim=1).mean()
+                loss_semantic = - (torch.sparse.mm(adj_cos, pred) * pred).sum(dim=1).mean()
+                loss = gamma_div*loss_div + gamma_semantic*loss_semantic
 
                 encoder_optimizer.zero_grad()
                 loss.backward()

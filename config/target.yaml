@@ -29,8 +29,8 @@ YelpRes:
 
 
 YelpNYC:
-  n_epoch_t: 600
-  k: 5
+  n_epoch_t: 500
+  k: 10
   m: 5
   r: 0.
   gamma_div: 500.
@@ -38,9 +38,9 @@ YelpNYC:
   gamma_hetero: 1.
   epsilon: 0.000001
   alpha: 0.05
-  lr_t: 0.01
-  epoch_encoder: 5
-  epoch_classifier: 5
+  lr_t: 0.02
+  epoch_encoder: 15
+  epoch_classifier: 10
 
 
 Amazon:
